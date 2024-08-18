@@ -1,0 +1,168 @@
+## Setting up my environment
+Notes: Setting up my R environment by installing the following analysis packages
+```{r install analysis packages}
+install.packages("tidyverse")
+install.packages("dplyr")
+install.packages("skimr")
+install.packages("janitor")
+install.packages("magrittr")
+```
+
+## Loading the required packages
+Here, I loaded the previously installed packages
+```{r load installed packages}
+library(tidyverse)
+library(dplyr)
+library(skimr)
+library(janitor)
+library(magrittr)
+```
+
+## Upload and read csv for analysis
+Here, I uploaded the injury_prediction csv and viewed the data frame
+```{r upload and read csv}
+injurypred <- read_csv("injury_data.csv")
+head(injurypred)
+str(injurypred)
+```
+
+## Fix any variables in data frame to match the csv
+Here, I altered the data types to match the original csv
+```{r mutate column data types}
+injurypred <- injurypred %>%
+  mutate(
+    Player_Age = as.integer(Player_Age),
+    Player_Weight = as.numeric(Player_Weight),
+    Player_Height = as.numeric(Player_Height),
+    Previous_Injuries = as.integer(Previous_Injuries),
+    Training_Intensity = as.numeric(Training_Intensity),
+    Recovery_Time = as.integer(Recovery_Time),
+    Likelihood_of_Injury = as.integer(Likelihood_of_Injury)
+  )
+```
+
+## Unit conversion
+Here, I converted the Player weights from kg into lbs
+```{r weight conversion}
+injurypred$Player_Weight <- injurypred$Player_Weight * 2.20462
+head(injurypred)
+```
+
+## Find the average player age, weight, and height
+Here, I found the average player age, weight and height to build foundation
+```{r calculate average age, weight, and height}
+injurypred %>%
+  summarise(average_age = mean(Player_Age, na.rm = TRUE))
+injurypred %>% 
+  summarise(average_weight = mean(Player_Weight, na.rm = TRUE))
+injurypred %>% 
+  summarise(average_height = mean(Player_Height, na.rm = TRUE))
+```
+
+## Calculate the min and max player age, weight, and height
+Here, I calculated the min and max
+```{r min and max}
+min(injurypred$Player_Age)
+max(injurypred$Player_Age)
+min(injurypred$Player_Weight)
+max(injurypred$Player_Weight)
+min(injurypred$Player_Height)
+max(injurypred$Player_Height)
+min(injurypred$Training_Intensity)
+max(injurypred$Training_Intensity)
+```
+
+## Count total number of players with and without previous injuries
+Here, I counted all players that do and do not have previous injuries 0=no, 1=yes
+```{r count previous injuries}
+table(injurypred$Previous_Injuries)
+```
+
+## Calculate total number of players older and younger that average age
+Here, I added how many players were older and youger than the average age
+```{r calculate player ages over and under avg age}
+sum(injurypred$Player_Age > 28.2)
+sum(injurypred$Player_Age < 28.2)
+```
+
+## Correlate relationship between age/weight and likelihood of injury
+Here, I found a correlation between player age/weight and likelihood to get injured
+```{r correlation_age_weight, echo=TRUE}
+correlations <- injurypred %>%
+  summarize(
+    Age_vs_Injury = cor(Player_Age, Likelihood_of_Injury, use = "complete.obs"),
+    Weight_vs_Injury = cor(Player_Weight, Likelihood_of_Injury, use = "complete.obs")
+  )
+print(correlations)
+```
+
+## Tabulate the likelihood of injury with a previous injury
+Here, I found the likelihood of getting re injured
+```{r tabulate likelihod}
+table(injurypred$Previous_Injuries,injurypred$Likelihood_of_Injury)
+```
+
+## Compare likelihood of injury for different age groups
+Here, I grouped the player ages and found the likelihood of injury for each group
+```{r aggregate age groups}
+injurypred$Age_Group <- cut(injurypred$Player_Age,breaks = c(18, 25, 30, 35, 39),
+                            labels = c("18-25", "26-30", "31-35", "36-39"))
+aggregate(Likelihood_of_Injury ~ Age_Group, data = injurypred, FUN = mean)
+```
+
+## Correlate the relationship between Training Intensity and Likelihood of Injury
+Here, I found a correlation between training intensity and likelihood of injury
+```{r correlation relationship}
+cor(injurypred$Training_Intensity, injurypred$Likelihood_of_Injury, use = "complete.obs")
+```
+
+## Calculate average recovery time
+Here, I grouped players by likelihood of injury and calculated average recovery time
+```{r aggregate recovery time}
+average_recovery_time <- injurypred %>% 
+  group_by(Likelihood_of_Injury) %>% 
+  summarize(average_recovery_time=mean(Recovery_Time,na.rm = TRUE))
+print(average_recovery_time)
+```
+
+# Visualizations
+
+## Player weight vs Previous Injuries
+Here, I plotted the relationship between age and previous injuries
+```{r ggplot previous injuries and weight}
+ggplot(injurypred, aes(x = factor(Previous_Injuries), y = Player_Weight)) +
+  geom_jitter(width = 0.2, height = 0) +
+  labs(x = "Previous Injuries (0 = No, 1 = Yes)", y = "Player Weight") +
+  theme_minimal()
+```
+
+## Training intensity vs Recovery Time
+Here, I plotted the relationship between intensity and recovery time
+```{r ggplot training intensity and recovery time}
+ggplot(injurypred, aes(x = factor(Recovery_Time), y = Training_Intensity)) +
+  geom_jitter(width = 0.2, height = 0) +
+  labs(x = "Recovery Time (days)", y = "Training Intensity") +
+  theme_minimal()
+```
+
+## Weight, Height, and likelihood of injury
+Here, I plotted the relationship between weight, height, and likelihood of injury
+```{r ggplot player weight, player height, likelihood of injury}
+ggplot(injurypred, aes(x = Player_Weight, y = Player_Height, color = Likelihood_of_Injury)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Player Weight (lbs), Height, and Likelihood of Injury",
+       x = "Player Weight (lbs)", y = "Player Height (cm)",
+       color = "Likelihood of Injury") +
+  theme_minimal()
+```
+
+## Training Intensity and Likelihood of Injury for Players with previous injuries
+Here, I plotted the relationship of training intensity vs likelihood of injury of players with previous injuries
+```{r ggplot intensity, likelihood, previous injuries}
+ggplot(injurypred, aes(x = Training_Intensity, y = Likelihood_of_Injury)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Training Intensity vs Likelihood of Injury for Players with Previous Injuries",
+       x = "Training Intensity", y = "Likelihood of Injury") +
+  theme_minimal()
+```
